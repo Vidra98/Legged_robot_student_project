@@ -91,12 +91,18 @@ class HopfNetwork():
   def update(self):
     """ Update oscillator states. """
 
-    # update parameters, integrate
+    # update parameters, integrate  
     self._integrate_hopf_equations()
     
     # map CPG variables to Cartesian foot xz positions (Equations 8, 9) 
-    x = np.zeros(4) # [TODO]
-    z = np.zeros(4) # [TODO]
+    x =  - self._des_step_len * self.r * cos(self.theta)# [TODO]   
+
+    theta = self.X[1,:] #[TODO]
+
+    if sin(theta) > 0 
+        z = - self._robot_height + self._ground_clearance * sin(theta) # [TODO]
+    else
+        z = - self._robot_height + self._ground_penetration * sin(theta)
 
     return x, z
       
@@ -111,11 +117,14 @@ class HopfNetwork():
     # loop through each leg's oscillator
     for i in range(4):
       # get r_i, theta_i from X
-      r, theta = 0, 0 # [TODO]
+      r, theta = self.X[0,:], self.X[1,:] # [TODO]
       # compute r_dot (Equation 6)
-      r_dot = 0 # [TODO]
+      r_dot = alpha * (self._mu - r**2)*r # [TODO]
       # determine whether oscillator i is in swing or stance phase to set natural frequency omega_swing or omega_stance (see Section 3)
-      theta_dot = 0 # [TODO]
+        if sin(theta) > 0
+            theta_dot = self._omega_swing + # [TODO]  
+        else
+            theta_dot = self._omega_stance + 
 
       # loop through other oscillators to add coupling (Equation 7)
       if self._couple:
@@ -126,7 +135,7 @@ class HopfNetwork():
 
     # integrate 
     self.X = np.zeros((2,4)) # [TODO]
-    # mod phase variables to keep between 0 and 2pi
+    # mod phase variables to keep between 0 and 2pi  
     self.X[1,:] = self.X[1,:] % (2*np.pi)
 
 
