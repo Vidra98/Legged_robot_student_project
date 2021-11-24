@@ -29,14 +29,14 @@ class HopfNetwork():
   """
   def __init__(self,
                 mu=1**2,                # converge to sqrt(mu)
-                omega_swing=4*2*np.pi,  # MUST EDIT ---------------------------------------------------------------------
+                omega_swing=2*2*np.pi,  # MUST EDIT ---------------------------------------------------------------------
                 omega_stance=1*2*np.pi, # MUST EDIT ---------------------------------------------------------------------
-                gait="BOUND",            # change depending on desired gait
+                gait="TROT",            # change depending on desired gait
                 coupling_strength=1,    # coefficient to multiply coupling matrix
                 couple=True,            # should couple
                 time_step=0.001,        # time step 
                 ground_clearance=0.05,  # foot swing height 
-                ground_penetration=0.01,# foot stance penetration into ground 
+                ground_penetration=0.005,# foot stance penetration into ground 
                 robot_height=0.25,      # in nominal case (standing) 
                 des_step_len=0.04,      # desired step length 
                 ):
@@ -69,10 +69,10 @@ class HopfNetwork():
     """ For coupling oscillators in phase space. 
     [TODO] update all coupling matrices #---------------------------------------------------------------------
     """
-    self.PHI_trot = [[0,    -np.pi, -np.pi, 0],
-                     [np.pi,0,     0,     np.pi],
-                     [np.pi,0,     0,     np.pi],
-                     [0,    -np.pi, -np.pi, 0]]
+    self.PHI_trot = [[0,    np.pi, np.pi, 0],
+                     [-np.pi,0,     0,     -np.pi],
+                     [-np.pi,0,     0,     -np.pi],
+                     [0,    np.pi, np.pi, 0]]
 
     self.PHI_walk = [[0,-np.pi,-np.pi/2,np.pi/2],
                      [np.pi,0,np.pi/2,3*np.pi/2],
@@ -127,7 +127,7 @@ class HopfNetwork():
     return x, z
       
         
-  def _integrate_hopf_equations(self):
+  def _integrate_hopf_equations(self): 
     """ Hopf polar equations and integration. Use equations 6 and 7. """
     # bookkeeping - save copies of current CPG states 
     X = self.X.copy()
@@ -153,7 +153,11 @@ class HopfNetwork():
       if self._couple:
         for j in range(4):
           if j != i:
-            theta_dot += r[j]*self._coupling_strength*np.sin((theta[j]-theta[i]-self.PHI[i][j])*deg2rad)*rad2deg # [TODO]
+            theta_dot += r[j]*self._coupling_strength*np.sin((theta[j]-theta[i]-self.PHI[i][j]))*rad2deg # [TODO]
+            print('Leg[',i,'] Coupling with :',j)
+            print('amplitude',r[j])
+            print('sin',np.sin((theta[j]-theta[i]-self.PHI[i][j]))*rad2deg)
+            print('dephasage angle',(theta[j]-theta[i]-self.PHI[i][j]))
 
       # set X_dot[:,i]
       X_dot[:,i] = [r_dot, theta_dot]
@@ -173,7 +177,7 @@ if __name__ == "__main__":
   sideSign = np.array([-1, 1, -1, 1]) # get correct hip sign (body right is negative)
 
   env = QuadrupedGymEnv(render=True,              # visualize
-                      on_rack=True,              # useful for debugging! 
+                      on_rack=False,              # useful for debugging! 
                       isRLGymInterface=False,     # not using RL
                       time_step=TIME_STEP,
                       action_repeat=1,
@@ -185,7 +189,7 @@ if __name__ == "__main__":
   # initialize Hopf Network, supply gait
   cpg = HopfNetwork(time_step=TIME_STEP)
 
-  TEST_STEPS = int(2 / (TIME_STEP))
+  TEST_STEPS = int(3 / (TIME_STEP))
   t = np.arange(TEST_STEPS)*TIME_STEP
 
   # [TODO] initialize data structures to save CPG and robot states
@@ -197,14 +201,13 @@ if __name__ == "__main__":
 
   ############## Sample Gains
   # joint PD gains
-  # kp=np.array([150,70,70])
-  # kd=np.array([2,0.5,0.5])
-  kp=np.array([1,7,7])
-  kd=np.array([0,0,0])
+  kp=np.array([150,70,70])
+  kd=np.array([2,0.5,0.5])
+  #kp=np.array([1,7,7])
+  #kd=np.array([0,0,0])
   # Cartesian PD gains
   kpCartesian = np.diag([2500]*3)
   kdCartesian = np.diag([40]*3)
-
 
   for j in range(TEST_STEPS):
     # initialize torque array to send to motors
@@ -224,7 +227,7 @@ if __name__ == "__main__":
       # call inverse kinematics to get corresponding joint angles (see ComputeInverseKinematics() in quad.py)
       leg_q = env.robot.ComputeInverseKinematics(i,leg_xyz) # [TODO] 
       # Add joint PD contribution to tau for leg i (Equation 4)
-      tau += np.dot(kp,(leg_q-q[3*i:3*i+3]))+np.dot(kd,(0-dq[3*i:3*i+3])) # [TODO] 
+      tau += np.multiply(kp,(leg_q.transpose()[0]-q[3*i:3*i+3].transpose()))+np.multiply(kd,(0-dq[3*i:3*i+3].transpose())) # [TODO] 
 
       # add Cartesian PD contribution
       if ADD_CARTESIAN_PD:
@@ -245,6 +248,30 @@ if __name__ == "__main__":
     #print('yo')
     # send torques to robot and simulate TIME_STEP seconds 
     env.step(action) 
+
+  gait_plt_x = plt.figure()
+  plt.plot(Total_leg_xyz[0,0,:])
+  plt.plot(Total_leg_xyz[0,1,:])
+  plt.plot(Total_leg_xyz[0,2,:])
+  plt.plot(Total_leg_xyz[0,3,:])
+  plt.legend(['FR', 'FL', 'RR', 'RL'])
+  plt.title('X position for each leg')
+
+  gait_plt_y = plt.figure()
+  plt.plot(Total_leg_xyz[1,0,:])
+  plt.plot(Total_leg_xyz[1,1,:])
+  plt.plot(Total_leg_xyz[1,2,:])
+  plt.plot(Total_leg_xyz[1,3,:])
+  plt.legend(['FR', 'FL', 'RR', 'RL'])
+  plt.title('Y position for each leg')
+
+  gait_plt_z = plt.figure()
+  plt.plot(Total_leg_xyz[2,0,:])
+  plt.plot(Total_leg_xyz[2,1,:])
+  plt.plot(Total_leg_xyz[2,2,:])
+  plt.plot(Total_leg_xyz[2,3,:])
+  plt.legend(['FR', 'FL', 'RR', 'RL'])
+  plt.title('Z position for each leg')
 
   leg_plt = plt.figure()
   plt.subplot(3,1,1)  
