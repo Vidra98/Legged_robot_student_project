@@ -107,7 +107,7 @@ class HopfNetwork():
 
     # set oscillator initial conditions  
     self.X[0,:] = [3.,3.,3.,3.]#np.random.rand(4) * .1 #---------------------------------------------------------------------
-    self.X[1,:] = [np.pi,0,0,np.pi]#np.random.rand(4) * .1#self.PHI[0,:] #---------------------------------------------------------------------
+    self.X[1,:] = self.PHI[0] #[np.pi,0,0,np.pi]#---------------------------------------------------------------------
 
     # save body and foot shaping
     self._ground_clearance = ground_clearance 
@@ -192,7 +192,7 @@ class HopfNetwork():
     rad2deg=180/np.pi
     deg2rad=np.pi/180
     # get r_i, theta_i from X
-    r, theta = X[0,:], X[1,:] 
+    r, theta = X[0,:], X[1,:]
     # loop through each leg's oscillator #---------------------------------------------------------------------
     for i in range(4):
       
@@ -209,7 +209,8 @@ class HopfNetwork():
       if self._couple:
         for j in range(4):
           if j != i:
-            theta_dot += r[j]*self._coupling_strength*np.sin((theta[j]-theta[i]-self.PHI[i][j]))*rad2deg # [TODO]
+            #print(i,j,'----',theta[i], theta[j],self.PHI[i][j])
+            theta_dot += r[j]*self._coupling_strength*np.sin((theta[j]-theta[i]-self.PHI[i][j])) # [TODO]
             #print('Leg[',i,'] Coupling with :',j)
             #print('amplitude',r[j])
             #print('sin',np.sin((theta[j]-theta[i]-self.PHI[i][j]))*rad2deg)
