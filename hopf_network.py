@@ -48,7 +48,7 @@ def cli():  # pylint: disable=too-many-statements,too-many-branches
     #hopf parameters
     parser.add_argument('--mu', type=float, default=2, 
                         help='converge to sqrt(mu)')
-    parser.add_argument('--omega_swing', type=float, default=2, 
+    parser.add_argument('--omega_swing', type=float, default=4, 
                         help='amplitude of the swing')
     parser.add_argument('--omega_stance', type=float, default=1, 
                         help='amplitude of the swing')
@@ -60,7 +60,7 @@ def cli():  # pylint: disable=too-many-statements,too-many-branches
                         help='should couple')
     parser.add_argument('--time_step', type=float, default=0.001, 
                         help='time step')
-    parser.add_argument('--ground_clearance', type=float, default=0.1, 
+    parser.add_argument('--ground_clearance', type=float, default=0.05, 
                         help='foot swing height')
     parser.add_argument('--ground_penetration', type=float, default=0.01, 
                         help='foot stance penetration into ground')
@@ -86,7 +86,7 @@ class HopfNetwork():
                 coupling_strength=1,    # coefficient to multiply coupling matrix
                 couple=True,            # should couple
                 time_step=0.001,        # time step 
-                ground_clearance=0.1,   # foot swing height 
+                ground_clearance=0.05,   # foot swing height 
                 ground_penetration=0.01,# foot stance penetration into ground 
                 robot_height=0.25,      # in nominal case (standing) 
                 des_step_len=0.04,      # desired step length 
