@@ -23,7 +23,7 @@ USE_GPU = False # make sure to install all necessary drivers
 # after implementing, you will want to test how well the agent learns with your MDP: 
 env_configs = {"motor_control_mode":"CARTESIAN_PD",
                "task_env": "LR_COURSE_TASK",
-               "observation_space_mode": "LR_COURSE_OBS"}
+               "observation_space_mode": "LR_COURSE_OBS"}#LR_COURSE_OBS
 #env_configs = {}
 
 if USE_GPU and LEARNING_ALG=="SAC":
