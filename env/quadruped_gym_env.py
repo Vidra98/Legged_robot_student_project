@@ -50,8 +50,10 @@ VIDEO_LOG_DIRECTORY = 'videos/' + datetime.datetime.now().strftime("vid-%Y-%m-%d
 
 
 EPISODE_LENGTH = 10   # how long before we reset the environment (max episode length for RL)
-MAX_FWD_VELOCITY = 6  # to avoid exploiting simulator dynamics, cap max reward for body velocity 
-
+MAX_FWD_VELOCITY = 12  # to avoid exploiting simulator dynamics, cap max reward for body velocity 
+MAX_SMOOTH_COST=0.05   #max cost on smoothness
+MAX_TORQUE_COST=0.05   #max cost on torque
+MAX_JOINT_SPEED_COST=0.05   #max cost on joint speed
 
 class QuadrupedGymEnv(gym.Env):
   """The gym environment for a quadruped {Unitree A1}.
@@ -274,6 +276,20 @@ class QuadrupedGymEnv(gym.Env):
 
     return self._distance_weight * forward_reward
 
+#---------------------------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------------------------
+
+#-------------------RRRRRRRRRRRREEEEEEEEEEEEEEWWWWWWWWWWWWWAAAAAAAARRRRRRRDDDDDDDDDDDDDDDD-----------------------
+
+#---------------------------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------------------------
+
   def _reward_lr_course(self):
     """ Implement your reward function here. How will you improve upon the above? """
     """ Reward progress in the positive world x direction.  """
@@ -282,15 +298,38 @@ class QuadrupedGymEnv(gym.Env):
     roll_pitch_yaw=self.robot.GetBaseOrientationRollPitchYaw()
     current_torque=self.robot.GetMotorTorques()
     current_velocity=self.robot.GetMotorVelocities() 
-    #print('torque',current_torque-self._last_motor_torque, np.sum(current_torque-self._last_motor_torque))
-    #print('vel',current_velocity-self._last_motor_velocity,np.sum(current_velocity-self._last_motor_velocity))
-    power_var=(current_torque)@(current_velocity)-self._last_motor_torque@self._last_motor_velocity
-    #print('Power',power,np.sum((current_torque-self._last_motor_torque)@(current_velocity-self._last_motor_velocity)))
+    contact_info=self.robot.GetContactInfo()
+    angular_velocity=self.robot.GetBaseAngularVelocity()
+    desired_height=0.3
+    foot_contact=contact_info[3]
+    print('contact info',foot_contact)
+    print('height',current_base_position[2],'m')
+
+    gait_desired='TROT'
+    if gait_desired== 'TROT':
+      gait_computation=np.dot([1,-1,1,-1],foot_contact).absolute
+    elif gait_desired== 'BOUND':
+      gait_computation=np.dot([1,1,-1,-1],foot_contact).absolute
+    print('TROT',np.abs([1,-1,1,-1]@foot_contact),'BOUND',np.abs([1,1,-1,-1]@foot_contact))
+
     #Weight
-    w1=2
-    w2=0.000001
-    #print(np.shape(self._observation))
-    forward_reward =w1*(current_base_position[0] - self._last_base_position[0])*np.cos(roll_pitch_yaw[2])+w2*power_var
+    w1=2          #Locomotion
+    w2=0.000001   #smoothness
+    w3=0.02       #height
+    w4=0.001      #feet moving
+    phi=np.pi/2 #dephasage dans l'orientation du corps (yaw) | fast = 0 | back = np.pi | side = np.pi/2
+    locomotion_reward=w1*(current_base_position[0] - self._last_base_position[0])*np.cos(roll_pitch_yaw[2]-phi) #foward 
+ 
+    power_var=np.sqrt(np.sum(np.square((current_torque)@(current_velocity)+self._last_motor_torque@self._last_motor_velocity)))
+    smoothness_cost=w2*power_var
+    height_cost=w3*np.abs(current_base_position[2]-desired_height)
+    gait_reward=w4*gait_computation
+
+    smoothness_cost=min(MAX_SMOOTH_COST,smoothness_cost)
+    #torque_cost=min(MAX_TORQUE_COST,torque_cost)
+    #joint_speed_cost=min(MAX_JOINT_SPEED_COST,joint_speed_cost)
+
+    forward_reward =locomotion_reward-smoothness_cost
     self._last_base_position = current_base_position
     self._last_motor_torque = current_torque
     self._last_motor_velocity = current_velocity
@@ -299,6 +338,10 @@ class QuadrupedGymEnv(gym.Env):
       # calculate what max distance can be over last time interval based on max allowed fwd velocity
       max_dist = MAX_FWD_VELOCITY * (self._time_step * self._action_repeat)
       forward_reward = min( forward_reward, max_dist)
+    print('reward',forward_reward)
+    print('height_cost',height_cost)
+    print('gait_reward',gait_reward)
+    print('...................------------------.......................')
 
     return self._distance_weight * forward_reward 
 
@@ -340,7 +383,7 @@ class QuadrupedGymEnv(gym.Env):
     u = np.clip(actions,-1,1)
     # scale to corresponding desired foot positions (i.e. ranges in x,y,z we allow the agent to choose foot positions)
     # [TODO: edit (do you think these should these be increased? How limiting is this?)]
-    scale_array = np.array([0.1, 0.05, 0.08]*4)#0.1 0.05 0.08
+    scale_array = np.array([0.1, 0.05, 0.08]*4)#FAST boi 0.1, 0.05, 0.08  #SIDE boy 0.1, 0.15, 0.12 #BACK boy 0.1, 0.05, 0.08
     # add to nominal foot position in leg frame (what are the final ranges?)
     
     des_foot_pos = self._robot_config.NOMINAL_FOOT_POS_LEG_FRAME + scale_array*u
@@ -358,9 +401,7 @@ class QuadrupedGymEnv(gym.Env):
       # desired foot position i (from RL above)
       desired_pos = des_foot_pos[3*i:3*i+3]# [TODO]
       # desired foot velocity i
-      #vd = np.zeros(3) 
       # foot velocity in leg frame i (Equation 2)
-      # [TODO]
       # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
       tau = np.dot(Jacob.transpose(),np.dot(kpCartesian,(desired_pos.transpose()-pos.transpose()))+np.dot(kdCartesian,(-v.transpose()))) # [TODO]
       #print('pos des', desired_pos.transpose(), '\n pos mes', pos.transpose(),'\ntau pos',np.dot(Jacob.transpose(),np.dot(kpCartesian,(desired_pos.transpose()-pos.transpose()))))
