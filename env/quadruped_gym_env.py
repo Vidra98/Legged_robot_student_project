@@ -50,7 +50,7 @@ VIDEO_LOG_DIRECTORY = 'videos/' + datetime.datetime.now().strftime("vid-%Y-%m-%d
 
 
 EPISODE_LENGTH = 10   # how long before we reset the environment (max episode length for RL)
-MAX_FWD_VELOCITY = 12  # to avoid exploiting simulator dynamics, cap max reward for body velocity 
+MAX_FWD_VELOCITY = 6  # to avoid exploiting simulator dynamics, cap max reward for body velocity 
 MAX_SMOOTH_COST=0.05   #max cost on smoothness
 MAX_TORQUE_COST=0.05   #max cost on torque
 MAX_JOINT_SPEED_COST=0.05   #max cost on joint speed
@@ -144,6 +144,9 @@ class QuadrupedGymEnv(gym.Env):
     self.videoLogID = None
     self.seed()
     self.reset()
+
+    #ADDED
+    self.last_stand=0
     self.initial_pos=self.robot.GetBasePosition()
 
   
@@ -301,22 +304,24 @@ class QuadrupedGymEnv(gym.Env):
     contact_info=self.robot.GetContactInfo()
     angular_velocity=self.robot.GetBaseAngularVelocity()
     desired_height=0.3
-    foot_contact=contact_info[3]
-    print('contact info',foot_contact)
-    print('height',current_base_position[2],'m')
+    foot_contact=np.array(contact_info[3])
 
-    gait_desired='TROT'
-    if gait_desired== 'TROT':
-      gait_computation=np.dot([1,-1,1,-1],foot_contact).absolute
-    elif gait_desired== 'BOUND':
-      gait_computation=np.dot([1,1,-1,-1],foot_contact).absolute
-    print('TROT',np.abs([1,-1,1,-1]@foot_contact),'BOUND',np.abs([1,1,-1,-1]@foot_contact))
+
+    gait_desired='BOUND'
+    if np.sum(foot_contact) is 0:
+      gait_computation=self.last_stand
+    else:
+      if gait_desired== 'TROT':
+        gait_computation=np.absolute(np.dot([1,-1,1,-1],foot_contact))
+      elif gait_desired== 'BOUND':
+        gait_computation=np.absolute(np.dot([1,1,-1,-1],foot_contact))
+      self.last_stand=gait_computation
 
     #Weight
     w1=2          #Locomotion
     w2=0.000001   #smoothness
     w3=0.02       #height
-    w4=0.001      #feet moving
+    w4=0.0007     #feet moving
     phi=np.pi/2 #dephasage dans l'orientation du corps (yaw) | fast = 0 | back = np.pi | side = np.pi/2
     locomotion_reward=w1*(current_base_position[0] - self._last_base_position[0])*np.cos(roll_pitch_yaw[2]-phi) #foward 
  
@@ -329,7 +334,6 @@ class QuadrupedGymEnv(gym.Env):
     #torque_cost=min(MAX_TORQUE_COST,torque_cost)
     #joint_speed_cost=min(MAX_JOINT_SPEED_COST,joint_speed_cost)
 
-    forward_reward =locomotion_reward-smoothness_cost
     self._last_base_position = current_base_position
     self._last_motor_torque = current_torque
     self._last_motor_velocity = current_velocity
@@ -337,11 +341,17 @@ class QuadrupedGymEnv(gym.Env):
     if MAX_FWD_VELOCITY < np.inf:
       # calculate what max distance can be over last time interval based on max allowed fwd velocity
       max_dist = MAX_FWD_VELOCITY * (self._time_step * self._action_repeat)
-      forward_reward = min( forward_reward, max_dist)
+      locomotion_reward = min( locomotion_reward, max_dist)
+
+    forward_reward =locomotion_reward-smoothness_cost+gait_reward-height_cost
+
+    """print('TROT',np.absolute(np.dot([1,-1,1,-1],foot_contact)),'BOUND',np.absolute(np.dot([1,1,-1,-1],foot_contact)))
     print('reward',forward_reward)
     print('height_cost',height_cost)
     print('gait_reward',gait_reward)
-    print('...................------------------.......................')
+    print('contact info',foot_contact)
+    print('height',current_base_position[2],'m')
+    print('...................------------------.......................')"""
 
     return self._distance_weight * forward_reward 
 
