@@ -22,8 +22,8 @@ USE_GPU = False # make sure to install all necessary drivers
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
 env_configs = {"motor_control_mode":"CARTESIAN_PD",
-               "task_env": "LR_COURSE_TASK",
-               "observation_space_mode": "LR_COURSE_OBS"}#LR_COURSE_OBS
+               "task_env": "LR_COURSE_TROT",                #LR_COURSE_FWD,LR_COURSE_BACKWARD,LR_COURSE_SIDEWAY,LR_COURSE_TROT
+               "observation_space_mode": "LR_COURSE_OBS_FEET_SENSOR_ADDED"}   #LR_COURSE_OBS | LR_COURSE_OBS_FEET_SENSOR_ADDED
 #env_configs = {}
 
 if USE_GPU and LEARNING_ALG=="SAC":
@@ -33,7 +33,7 @@ else:
 
 if LOAD_NN:
     interm_dir = "./logs/intermediate_models/"
-    log_dir = interm_dir + 'first_walking' # add path
+    log_dir = interm_dir + 'First_trot' # add path
     stats_path = os.path.join(log_dir, "vec_normalize.pkl")
     model_name = get_latest_model(log_dir)
 
@@ -50,7 +50,7 @@ env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=100.)
 
 if LOAD_NN:
     env = lambda: QuadrupedGymEnv()
-    env = make_vec_env(env, n_envs=NUM_ENVS)
+    env = make_vec_env(env, monitor_dir=SAVE_PATH,n_envs=NUM_ENVS)
     env = VecNormalize.load(stats_path, env)
 
 # Multi-layer perceptron (MLP) policy of two layers of size _,_ 
@@ -58,21 +58,21 @@ policy_kwargs = dict(net_arch=[256,256])
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
 n_steps = 4096 
 learning_rate = lambda f: 1e-4 
-ppo_config = {  "gamma":0.99, 
-                "n_steps": int(n_steps/NUM_ENVS), 
-                "ent_coef":0.0, 
+ppo_config = {  "gamma":0.99,                       # Discount factor
+                "n_steps": int(n_steps/NUM_ENVS),   # number of steps to run for each environment per update
+                "ent_coef":0.0,                     # Entropy coefficient for the loss calculation
                 "learning_rate":learning_rate, 
-                "vf_coef":0.5,
-                "max_grad_norm":0.5, 
-                "gae_lambda":0.95, 
+                "vf_coef":0.5,                      # Value function coefficient for the loss calculation
+                "max_grad_norm":0.5,                # The maximum value for the gradient clipping
+                "gae_lambda":0.95,                  # Factor for trade-off of bias vs variance for Generalized Advantage Estimator
                 "batch_size":128,
                 "n_epochs":10, 
-                "clip_range":0.2, 
-                "clip_range_vf":1,
-                "verbose":1, 
+                "clip_range":0.2,                   # Clipping parameter
+                "clip_range_vf":1,                  # Clipping parameter for the value function IMPORTANT: this clipping depends on the reward scaling.
+                "verbose":1,                        # the verbosity level: 0 no output, 1 info, 2 debug
                 "tensorboard_log":None, 
-                "_init_setup_model":True, 
-                "policy_kwargs":policy_kwargs,
+                "_init_setup_model":True,           # Whether or not to build the network at the creation of the instance
+                "policy_kwargs":policy_kwargs,      # additional arguments to be passed to the policy on creation
                 "device": gpu_arg}
 
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/sac.html
@@ -98,6 +98,7 @@ elif LEARNING_ALG == "SAC":
 else:
     raise ValueError(LEARNING_ALG + 'not implemented')
 
+print(env.observation_space)
 if LOAD_NN:
     if LEARNING_ALG == "PPO":
         model = PPO.load(model_name, env)

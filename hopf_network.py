@@ -46,7 +46,7 @@ def cli():  # pylint: disable=too-many-statements,too-many-branches
     parser.add_argument('--number_of_step', type=int, default=10,
                         help='number of steps taken')        
     #hopf parameters
-    parser.add_argument('--mu', type=float, default=2, 
+    parser.add_argument('--mu', type=float, default=1, 
                         help='converge to sqrt(mu)')
     parser.add_argument('--omega_swing', type=float, default=4, 
                         help='amplitude of the swing')
