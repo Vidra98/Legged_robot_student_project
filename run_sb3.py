@@ -15,14 +15,14 @@ from utils.file_utils import get_latest_model
 from env.quadruped_gym_env import QuadrupedGymEnv
 
 
-LEARNING_ALG = "PPO" # or "SAC"
-LOAD_NN = False # if you want to initialize training with a previous model 
+LEARNING_ALG = "SAC" # "PPO" or "SAC"
+LOAD_NN = True # if you want to initialize training with a previous model 
 NUM_ENVS = 1    # how many pybullet environments to create for data collection
 USE_GPU = False # make sure to install all necessary drivers 
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
 env_configs = {"motor_control_mode":"CARTESIAN_PD",
-               "task_env": "LR_COURSE_TROT",                #LR_COURSE_FWD,LR_COURSE_BACKWARD,LR_COURSE_SIDEWAY,LR_COURSE_TROT
+               "task_env": "LR_COURSE_FWD",                #LR_COURSE_FWD,LR_COURSE_BACKWARD,LR_COURSE_SIDEWAY,LR_COURSE_TROT
                "observation_space_mode": "LR_COURSE_OBS_FEET_SENSOR_ADDED"}   #LR_COURSE_OBS | LR_COURSE_OBS_FEET_SENSOR_ADDED
 #env_configs = {}
 
@@ -33,7 +33,7 @@ else:
 
 if LOAD_NN:
     interm_dir = "./logs/intermediate_models/"
-    log_dir = interm_dir + 'First_trot' # add path
+    log_dir = interm_dir + 'SAC_1' # add path
     stats_path = os.path.join(log_dir, "vec_normalize.pkl")
     model_name = get_latest_model(log_dir)
 
@@ -58,7 +58,7 @@ policy_kwargs = dict(net_arch=[256,256])
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
 n_steps = 4096 
 learning_rate = lambda f: 1e-4 
-ppo_config = {  "gamma":0.99,                       # Discount factor
+ppo_config = {  "gamma":0.99,                       # Discount factor multply the reward on the return, for a low gamma, the policy will priviliege close steps reward over reward at steps far away
                 "n_steps": int(n_steps/NUM_ENVS),   # number of steps to run for each environment per update
                 "ent_coef":0.0,                     # Entropy coefficient for the loss calculation
                 "learning_rate":learning_rate, 
@@ -70,23 +70,23 @@ ppo_config = {  "gamma":0.99,                       # Discount factor
                 "clip_range":0.2,                   # Clipping parameter
                 "clip_range_vf":1,                  # Clipping parameter for the value function IMPORTANT: this clipping depends on the reward scaling.
                 "verbose":1,                        # the verbosity level: 0 no output, 1 info, 2 debug
-                "tensorboard_log":None, 
+                "tensorboard_log":None,             # the log location for tensorboard [string]
                 "_init_setup_model":True,           # Whether or not to build the network at the creation of the instance
                 "policy_kwargs":policy_kwargs,      # additional arguments to be passed to the policy on creation
                 "device": gpu_arg}
 
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/sac.html
-sac_config={"learning_rate":1e-4,
-            "buffer_size":300000,
-            "batch_size":256,
-            "ent_coef":'auto', 
-            "gamma":0.99, 
-            "tau":0.005,
-            "train_freq":1, 
-            "gradient_steps":1,
-            "learning_starts": 10000,
-            "verbose":1, 
-            "tensorboard_log":None,
+sac_config={"learning_rate":1e-4,                   # Adam optimizer
+            "buffer_size":300000,                   # size of replay buffer
+            "batch_size":256,                       # mibatch before each gradient update
+            "ent_coef":'auto',                      # Entropy regularization coefficient. 
+            "gamma":0.99,                           # Discount factor
+            "tau":0.005,                            # the soft update coefficient
+            "train_freq":2,                         # Update the model every train_freq steps
+            "gradient_steps":1,                     # How many gradient steps to do after each rollout
+            "learning_starts": 10000,               # how many steps of the model to collect transitions for before learning starts
+            "verbose":1,                            
+            "tensorboard_log":None,                 # the log location for tensorboard
             "policy_kwargs": policy_kwargs,
             "seed":None, 
             "device": gpu_arg}
@@ -98,7 +98,7 @@ elif LEARNING_ALG == "SAC":
 else:
     raise ValueError(LEARNING_ALG + 'not implemented')
 
-print(env.observation_space)
+print('bite',env.observation_space)
 if LOAD_NN:
     if LEARNING_ALG == "PPO":
         model = PPO.load(model_name, env)

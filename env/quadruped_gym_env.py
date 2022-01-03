@@ -49,7 +49,7 @@ VIDEO_LOG_DIRECTORY = 'videos/' + datetime.datetime.now().strftime("vid-%Y-%m-%d
 #         torques are computed based on the foot position/velocity error
 
 
-EPISODE_LENGTH = 40   # how long before we reset the environment (max episode length for RL)
+EPISODE_LENGTH = 10   # how long before we reset the environment (max episode length for RL)
 MAX_FWD_VELOCITY = 1.5  #ADDED 6 for the fast,slow and side boi# 1.5 for slow boi # to avoid exploiting simulator dynamics, cap max reward for body velocity 
 MAX_SMOOTH_COST=0.05   #max cost on smoothness
 MAX_TORQUE_COST=0.05   #max cost on torque
@@ -71,8 +71,8 @@ class QuadrupedGymEnv(gym.Env):
       distance_weight=2,
       energy_weight=0.008,
       motor_control_mode="CARTESIAN_PD",
-      task_env="LR_COURSE_PACE", #LR_COURSE_FWD,LR_COURSE_BACKWARD,LR_COURSE_SIDEWAY,LR_COURSE_PACE 
-      observation_space_mode="LR_COURSE_OBS",
+      task_env="LR_COURSE_FWD", #LR_COURSE_FWD,LR_COURSE_BACKWARD,LR_COURSE_SIDEWAY,LR_COURSE_PACE 
+      observation_space_mode="LR_COURSE_OBS_FEET_SENSOR_ADDED",
       on_rack=False,
       render=False,
       record_video=False,
@@ -161,6 +161,13 @@ class QuadrupedGymEnv(gym.Env):
     self.initial_time=self.get_sim_time()
     self.velocity=np.empty((1,3))
     self.gait_computation=0
+
+    self.all_base_velocity=np.empty((1,3))   #historic of base joint velocity
+    self.all_joint_velocity=np.empty((1,12))  #historic of all joint velocity
+    self.all_joint_torque=np.empty((1,12))    #historic of all joint torque
+    self.steps_history=np.empty((1,4))       #historic of all steps 
+    self.cot_history=np.empty(1)
+    self.robot_mass=12.45401 #mass from urdf
 
   
   ######################################################################################
@@ -421,16 +428,6 @@ class QuadrupedGymEnv(gym.Env):
 
     forward_reward =locomotion_reward-smoothness_cost+gait_reward-height_cost
 
-    """print('TROT',np.absolute(np.dot([1,-1,-1,1],foot_contact)),'BOUND',np.absolute(np.dot([1,1,-1,-1],foot_contact)))
-    print('locomotion reward',locomotion_reward)
-    print('smoothness_cost',smoothness_cost)
-    print('reward',forward_reward)
-    print('height_cost',height_cost)
-    print('gait_reward',gait_reward)
-    print('contact info',foot_contact)
-    print('height',current_base_position[2],'m')
-    print('...................------------------.......................')"""
-
     return self._distance_weight * forward_reward 
 
   def _reward(self):
@@ -444,9 +441,9 @@ class QuadrupedGymEnv(gym.Env):
     elif self._TASK_ENV == "LR_COURSE_SIDEWAY":
           return self._reward_lr_course([2,0.0000001,0.,0.],np.pi/2,6)
     elif self._TASK_ENV == "LR_COURSE_PACE":
-          return self._reward_lr_course([2,0.0000001,0.02,0.005],0,1.5)
+          return self._reward_lr_course([2,0.0000001,0.00,0.005],0,1.5)
     elif self._TASK_ENV == "LR_COURSE_TROT":
-          return self._reward_lr_course([2,0.000005,0.02,0.005],0,1.5)
+          return self._reward_lr_course([2,0.000005,0.00,0.005],0,1.5)
     else:
       raise ValueError("This task mode not implemented yet.")
 
@@ -533,6 +530,9 @@ class QuadrupedGymEnv(gym.Env):
       self._dt_motor_torques.append(self.robot.GetMotorTorques())
       self._dt_motor_velocities.append(self.robot.GetMotorVelocities())
 
+      #print(self._sim_step_counter,np.shape(self._dt_motor_torques),np.shape(self.robot.GetMotorTorques()))
+      #print(self._sim_step_counter,np.shape(self._dt_motor_velocities),np.shape(self.robot.GetMotorVelocities()))
+
       if self._is_render:
         self._render_step_helper()
 
@@ -544,17 +544,31 @@ class QuadrupedGymEnv(gym.Env):
     Total_time=self.get_sim_time()-self.initial_time
     #print('bouh',self.robot.GetBaseLinearVelocity())
     #print('bam',np.empty(3) )
-    self.velocity=np.concatenate((self.velocity,[self.robot.GetBaseLinearVelocity()]))
     mouvement_threshold=5
     if self._termination() or self.get_sim_time() > self._MAX_EP_LEN:
       if self._termination():
+        print('It was terminated')
         reward=-2
       if self.get_sim_time() and Total_movement>mouvement_threshold:
+        print('It ran through the end')
         reward= 2
       done = True
 
+    motorVelocity=self.robot.GetMotorVelocities()
+    motorTorque=self.robot.GetMotorTorques() 
+    base_velocity=self.robot.GetBaseLinearVelocity()
+
+    #Compute the CoT
+    CoT=np.sum(np.abs(motorVelocity@motorTorque))/(np.abs(base_velocity[0])*self.robot_mass*9.81)
+    self.velocity=np.concatenate((self.velocity,[self.robot.GetBaseLinearVelocity()]))
+    self.all_base_velocity=np.concatenate((self.velocity,[base_velocity]))
+    self.all_joint_velocity=np.concatenate((self.all_joint_velocity,[motorVelocity]))
+    self.all_joint_torque=np.concatenate((self.all_joint_torque,[motorTorque]))
+    self.steps_history=np.concatenate((self.steps_history,[self.robot.GetContactInfo()[3]]))
+    self.cot_history=np.concatenate((self.cot_history,[CoT]))
+
     return np.array(self._noisy_observation()), reward, done, {'base_pos': self.robot.GetBasePosition(),'Total_time':Total_time,'Total_movement':Total_movement,
-                                                              'veloctiy':self.velocity} 
+                                                               'base_veloctiy':self.all_base_velocity,'steps':self.steps_history,'CoT':self.cot_history} 
 
   ######################################################################################
   # Reset
@@ -874,7 +888,7 @@ class QuadrupedGymEnv(gym.Env):
 def test_env():
   env = QuadrupedGymEnv(render=True, 
                         on_rack=True,
-                        motor_control_mode='PD',
+                        motor_control_mode='CARTESIAN_PD',
                         action_repeat=100,
                         )
 

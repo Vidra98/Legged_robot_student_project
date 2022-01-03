@@ -189,14 +189,19 @@ def plot_results(dirs, num_timesteps, xaxis, task_name):
         if num_timesteps is not None:
             timesteps = timesteps[timesteps.l.cumsum() <= num_timesteps]
         tslist.append(timesteps)
-    #plt.figure(1)
+    #ep_reward=plt.figure(1)
     xy_list = [ts2xy(timesteps_item, xaxis) for timesteps_item in tslist]
     plot_curves(xy_list, xaxis, task_name+'Rewards')
     plt.ylabel("Episode Rewards")
-    #plt.figure(2)
+    plt.savefig('Figures/reward.eps')
+
+    #ep_len=plt.figure(2)
     xy_list = [ts2xy(timesteps_item, xaxis, Y_EPLEN) for timesteps_item in tslist]
     plot_curves(xy_list, xaxis, task_name+'Ep Len')
-    plt.ylabel("Episode Length")
+    plt.savefig('Figures/length.eps')
+
+    #plt.ylabel("Episode Length")
+
 
 
 ######################################################################################
