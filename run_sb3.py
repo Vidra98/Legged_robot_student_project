@@ -15,15 +15,15 @@ from utils.file_utils import get_latest_model
 from env.quadruped_gym_env import QuadrupedGymEnv
 
 
-LEARNING_ALG = "SAC" # "PPO" or "SAC"
-LOAD_NN = True # if you want to initialize training with a previous model 
-NUM_ENVS = 1    # how many pybullet environments to create for data collection
+LEARNING_ALG = "PPO" # "PPO" or "SAC"
+LOAD_NN = False # if you want to initialize training with a previous model 
+NUM_ENVS = 4    # how many pybullet environments to create for data collection
 USE_GPU = False # make sure to install all necessary drivers 
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
-env_configs = {"motor_control_mode":"CARTESIAN_PD",
+env_configs = {"motor_control_mode":"PD",        #"PD" | "TORQUE" | "CARTESIAN_PD"
                "task_env": "LR_COURSE_FWD",                #LR_COURSE_FWD,LR_COURSE_BACKWARD,LR_COURSE_SIDEWAY,LR_COURSE_TROT
-               "observation_space_mode": "LR_COURSE_OBS_FEET_SENSOR_ADDED"}   #LR_COURSE_OBS | LR_COURSE_OBS_FEET_SENSOR_ADDED
+               "observation_space_mode": "LR_COURSE_OBS"}   #LR_COURSE_OBS | LR_COURSE_OBS_FEET_SENSOR_ADDED
 #env_configs = {}
 
 if USE_GPU and LEARNING_ALG=="SAC":

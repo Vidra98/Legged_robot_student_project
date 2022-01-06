@@ -41,18 +41,18 @@ def cli():  # pylint: disable=too-many-statements,too-many-branches
     parser.add_argument('--record_video', default=False, action='store_true',
                         help='record motion')
 
-    parser.add_argument('--add_cartesian_pd', default=False,action='store_true',
+    parser.add_argument('--add_cartesian_pd', default=True,action='store_true',
                         help='ADD_CARTESIAN_PD')    
     parser.add_argument('--number_of_step', type=int, default=10,
                         help='number of steps taken')        
     #hopf parameters
     parser.add_argument('--mu', type=float, default=1, 
                         help='converge to sqrt(mu)')
-    parser.add_argument('--omega_swing', type=float, default=4, 
+    parser.add_argument('--omega_swing', type=float, default=16, 
                         help='amplitude of the swing')
-    parser.add_argument('--omega_stance', type=float, default=1, 
+    parser.add_argument('--omega_stance', type=float, default=4, 
                         help='amplitude of the swing')
-    parser.add_argument('--gait', type=str, default="TROT", 
+    parser.add_argument('--gait', type=str, default="BOUND", 
                         help='change depending on desired gait')
     parser.add_argument('--coupling_strength', type=float, default=1, 
                         help='coefficient to multiply coupling matrix')
@@ -60,13 +60,13 @@ def cli():  # pylint: disable=too-many-statements,too-many-branches
                         help='should couple')
     parser.add_argument('--time_step', type=float, default=0.001, 
                         help='time step')
-    parser.add_argument('--ground_clearance', type=float, default=0.05, 
+    parser.add_argument('--ground_clearance', type=float, default=0.06, 
                         help='foot swing height')
-    parser.add_argument('--ground_penetration', type=float, default=0.01, 
+    parser.add_argument('--ground_penetration', type=float, default=0.0045, 
                         help='foot stance penetration into ground')
     parser.add_argument('--robot_height', type=float, default=0.25, 
                         help='in nominal case (standing)')
-    parser.add_argument('--des_step_len', type=float, default=0.04, 
+    parser.add_argument('--des_step_len', type=float, default=0.042, 
                         help='desired step length')
     args = parser.parse_args()
     return args
@@ -79,7 +79,7 @@ class HopfNetwork():
   (Front Right, Front Left, Rear Right, Rear Left)
   """
   def __init__(self,
-                mu=1**2,                # converge to sqrt(mu)
+                mu=1**1,                # converge to sqrt(mu)
                 omega_swing=2*2*np.pi,  # MUST EDIT ---------------------------------------------------------------------
                 omega_stance=1*2*np.pi, # MUST EDIT ---------------------------------------------------------------------
                 gait="TROT",            # change depending on desired gait

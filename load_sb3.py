@@ -25,17 +25,17 @@ from utils.utils import plot_results
 from utils.file_utils import get_latest_model, load_all_results
 
 
-LEARNING_ALG = "SAC"#"PPO"
+LEARNING_ALG = "PPO"#"PPO"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '111121133812'
-log_dir = interm_dir + '010222235016'#SAC
+log_dir = interm_dir + 'Fast_boi'#SAC
 plot_fig=True
 save_plot=True
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
-env_config = {"motor_control_mode":"CARTESIAN_PD",
+env_config = {"motor_control_mode":"CARTESIAN_PD",       #"PD" | "TORQUE" | "CARTESIAN_PD"
                "task_env": "LR_COURSE_FWD",    #LR_COURSE_FWD,LR_COURSE_BACKWARD,LR_COURSE_SIDEWAY,LR_COURSE_TROT 
-               "observation_space_mode": "LR_COURSE_OBS_FEET_SENSOR_ADDED"} # LR_COURSE_OBS , LR_COURSE_OBS_FEET_SENSOR_ADDED
+               "observation_space_mode": "LR_COURSE_OBS"} # LR_COURSE_OBS , LR_COURSE_OBS_FEET_SENSOR_ADDED
 env_config['render'] = True
 env_config['record_video'] = False
 env_config['add_noise'] = False 
@@ -100,13 +100,24 @@ for i in range(10000):
         plt.ylabel('CoT')
         plt.title('Cost of transport')
         
+        step_start=50
+        step_end=200
         Stepping_plt = plt.figure()
-        plt.plot(steps[:,0])
+        plt.plot(steps[step_start:step_end,0])
         #plt.plot(steps[:,1])
-        plt.plot(steps[:,2])
+        plt.plot(steps[step_start:step_end,2])
         #plt.plot(steps[:,3])
         plt.legend(['FR', 'RR'])
         #plt.legend(['FR', 'FL', 'RR', 'RL'])
+        plt.title('Stepping time')
+
+        Stepp_plt_tot = plt.figure()
+        plt.plot(steps[step_start:step_end,0])
+        plt.plot(steps[step_start:step_end,1])
+        plt.plot(steps[step_start:step_end,2])
+        plt.plot(steps[step_start:step_end,3])
+        #plt.legend(['FR', 'RR'])
+        plt.legend(['FR', 'FL', 'RR', 'RL'])
         plt.title('Stepping time')
 
         Velocity_plt = plt.figure()
