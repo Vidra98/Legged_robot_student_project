@@ -24,7 +24,7 @@ import argparse
 def cli():  # pylint: disable=too-many-statements,too-many-branches
     parser = argparse.ArgumentParser()
     #Env parameters
-    parser.add_argument('--plot', default=False, action='store_true',
+    parser.add_argument('--plot', default=True, action='store_true',
                         help='plot caracteristics of the motion')
     parser.add_argument('--render', default=True,
                         help='visualize motion')
@@ -38,12 +38,12 @@ def cli():  # pylint: disable=too-many-statements,too-many-branches
                         help='motor control mode')
     parser.add_argument('--add_noise', type=bool, default=True, 
                         help='noise on surface coefficient')
-    parser.add_argument('--record_video', default=False, action='store_true',
+    parser.add_argument('--record_video', default=False,
                         help='record motion')
 
     parser.add_argument('--add_cartesian_pd', default=True,action='store_true',
                         help='ADD_CARTESIAN_PD')    
-    parser.add_argument('--number_of_step', type=int, default=10,
+    parser.add_argument('--number_of_step', type=int, default=2,
                         help='number of steps taken')        
     #hopf parameters
     parser.add_argument('--mu', type=float, default=1, 
@@ -52,7 +52,7 @@ def cli():  # pylint: disable=too-many-statements,too-many-branches
                         help='amplitude of the swing')
     parser.add_argument('--omega_stance', type=float, default=4, 
                         help='amplitude of the swing')
-    parser.add_argument('--gait', type=str, default="BOUND", 
+    parser.add_argument('--gait', type=str, default="WALK", 
                         help='change depending on desired gait')
     parser.add_argument('--coupling_strength', type=float, default=1, 
                         help='coefficient to multiply coupling matrix')
@@ -71,7 +71,6 @@ def cli():  # pylint: disable=too-many-statements,too-many-branches
     args = parser.parse_args()
     return args
 
-
 class HopfNetwork():
   """ CPG network based on hopf polar equations mapped to foot positions in Cartesian space.  
 
@@ -80,8 +79,8 @@ class HopfNetwork():
   """
   def __init__(self,
                 mu=1**1,                # converge to sqrt(mu)
-                omega_swing=2*2*np.pi,  # MUST EDIT ---------------------------------------------------------------------
-                omega_stance=1*2*np.pi, # MUST EDIT ---------------------------------------------------------------------
+                omega_swing=0,  # MUST EDIT ---------------------------------------------------------------------
+                omega_stance=0, # MUST EDIT ---------------------------------------------------------------------
                 gait="TROT",            # change depending on desired gait
                 coupling_strength=1,    # coefficient to multiply coupling matrix
                 couple=True,            # should couple
@@ -106,8 +105,8 @@ class HopfNetwork():
     self._set_gait(gait)
 
     # set oscillator initial conditions  
-    self.X[0,:] = [3.,3.,3.,3.]#np.random.rand(4) * .1 #---------------------------------------------------------------------
-    self.X[1,:] = self.PHI[0] #[np.pi,0,0,np.pi]#---------------------------------------------------------------------
+    self.X[0,:] = [3.,3.,3.,3.]#np.random.rand(4) * .1 
+    self.X[1,:] = self.PHI[0] #[np.pi,0,0,np.pi]
 
     # save body and foot shaping
     self._ground_clearance = ground_clearance 
@@ -118,7 +117,7 @@ class HopfNetwork():
 
   def _set_gait(self,gait):
     """ For coupling oscillators in phase space. 
-    [TODO] update all coupling matrices #---------------------------------------------------------------------
+    [TODO] update all coupling matrices 
     """
     self.PHI_trot = [[0,    np.pi, np.pi, 0],
                      [-np.pi,0,     0,     -np.pi],
@@ -143,7 +142,6 @@ class HopfNetwork():
     if gait == "TROT":
       print('TROT')
       self.PHI = self.PHI_trot
-      #--omega_swing=6 --omega_stance=1 --mu=3 --gait=TROT --number_of_step=3
       self.X[0,:] = [3.,3.,3.,3.]
       self.X[1,:] = [np.pi,0,0,np.pi]
     elif gait == "PACE":
@@ -193,7 +191,7 @@ class HopfNetwork():
     deg2rad=np.pi/180
     # get r_i, theta_i from X
     r, theta = X[0,:], X[1,:]
-    # loop through each leg's oscillator #---------------------------------------------------------------------
+    # loop through each leg's oscillator 
     for i in range(4):
       
       
@@ -209,14 +207,7 @@ class HopfNetwork():
       if self._couple:
         for j in range(4):
           if j != i:
-            #print(i,j,'----',theta[i], theta[j],self.PHI[i][j])
             theta_dot += r[j]*self._coupling_strength*np.sin((theta[j]-theta[i]-self.PHI[i][j])) # [TODO]
-            #print('Leg[',i,'] Coupling with :',j)
-            #print('amplitude',r[j])
-            #print('sin',np.sin((theta[j]-theta[i]-self.PHI[i][j]))*rad2deg)
-            #print('dephasage angle',(theta[j]-theta[i]-self.PHI[i][j]))
-
-      # set X_dot[:,i]
       X_dot[:,i] = [r_dot, theta_dot]
 
     # integrate 
@@ -240,12 +231,12 @@ if __name__ == "__main__":
                       time_step=args.time_step,
                       action_repeat=args.action_repeat,
                       motor_control_mode=args.motor_control_mode,
-                      add_noise=args.add_noise,    # start in ideal conditions
+                      add_noise=args.add_noise,          # start in ideal conditions
                       record_video=args.record_video
                       )
 
   # initialize Hopf Network, supply gait
-  cpg = HopfNetwork(mu=args.mu**2,                           # converge to sqrt(mu)
+  cpg = HopfNetwork(mu=args.mu,                           # converge to sqrt(mu)
                 omega_swing=args.omega_swing*2*np.pi,     # MUST EDIT ---------------------------------------------------------------------
                 omega_stance=args.omega_stance*2*np.pi,   # MUST EDIT ---------------------------------------------------------------------
                 gait=args.gait,                           # change depending on desired gait
@@ -266,7 +257,9 @@ if __name__ == "__main__":
   Total_tau=np.zeros((3,4,TEST_STEPS))
   Total_desired_trajectory_q=np.zeros((3,4,TEST_STEPS))
   Total_obtained_trajectory=np.zeros((3,4,TEST_STEPS))
-
+  Total_CoT=np.zeros((TEST_STEPS))
+  Total_foot_step=np.zeros((4,TEST_STEPS))
+  Total_velocity=np.zeros((3,TEST_STEPS))
 
   ############## Sample Gains
   # joint PD gains
@@ -296,7 +289,6 @@ if __name__ == "__main__":
       leg_q = env.robot.ComputeInverseKinematics(i,leg_xyz) # [TODO] 
       # Add joint PD contribution to tau for leg i (Equation 4)
       tau += np.multiply(kp,(leg_q.transpose()-q[3*i:3*i+3].transpose()))+np.multiply(kd,(0-dq[3*i:3*i+3].transpose())) # [TODO] 
-      #print(leg_q,leg_q.transpose()[0])
       # add Cartesian PD contribution
       if args.add_cartesian_pd:
         # Get current Jacobian and foot position in leg frame (see ComputeJacobianAndPosition() in quad.py)
@@ -307,22 +299,8 @@ if __name__ == "__main__":
         v=np.dot(Jacob,dq[3*i:3*i+3])
 
         desired_pos=leg_xyz
-        
-        """print('-------------------------------------')
-        print('tau',tau)
-        print('jacob\n',Jacob,np.shape(Jacob))
-        print('jacob transpose\n',Jacob.transpose())
-        print('-------------------------------------')
-        print('desired_pos',desired_pos.transpose())
-        print('p',p)
-        print('v',v)
-        print('-------------------------------------')
-        print('position\n',desired_pos.transpose(),'\n',p.transpose(),'\n',desired_pos.transpose()[0]-p.transpose())
-        print('velocity\n',-v.transpose())
-        print('-------------------------------------')"""
+ 
         tau_tmp=np.dot(Jacob.transpose(),np.dot(kpCartesian,(desired_pos.transpose()-p.transpose()))+np.dot(kdCartesian,(-v.transpose())))
-        #print('tau in xyz\n',np.dot(kpCartesian,(desired_pos.transpose()-p.transpose()))+np.dot(kdCartesian,(-v.transpose())))
-        #print('tau cartesian',np.array(tau_tmp))
 
         # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
         tau += tau_tmp  #[TODO]
@@ -334,14 +312,56 @@ if __name__ == "__main__":
       Total_tau[:,i,j]=tau
       Total_desired_trajectory_q[:,i,j]=q[3*i:3*i+3]
       Total_obtained_trajectory[:,i,j]=leg_q.transpose()
-    #print('yo')
     # send torques to robot and simulate TIME_STEP seconds 
     env.step(action) 
+    robot_mass=12.45401 #mass from urdf
+    Total_foot_step[:,j]=env.robot.GetContactInfo()[3]
+    motorVelocity=env.robot.GetMotorVelocities()
+    motorTorque=env.robot.GetMotorTorques() 
+    Total_velocity[:,j]=env.robot.GetBaseLinearVelocity()
+
+    #Compute the CoT
+    Total_CoT[j]=np.sum(np.abs(motorVelocity@motorTorque))/(np.abs(Total_velocity[0,j])*robot_mass*9.81)
 
   ##################################################### 
   # PLOTS
   #####################################################
+  print('---------------------------------------------------------------------------------------')
   if args.plot==True:
+    CoT = plt.figure()
+    plt.plot(Total_CoT)
+    plt.ylabel('Cost of transport')
+    plt.xlabel('Time [ms]')
+    plt.title('CoT')
+    print('Average CoT', np.mean(Total_CoT[5000:]))
+    Speed = plt.figure()
+    plt.plot(Total_velocity[0,:])
+    plt.plot(Total_velocity[1,:])
+    plt.plot(Total_velocity[2,:])
+    plt.legend(['x', 'y', 'z'])
+    plt.ylabel('Speed m/s')
+    plt.xlabel('Time [ms]')
+    plt.title('Velocity')
+    print('Average velocity', np.mean(Total_velocity[0,-1000:]))
+    Foot = plt.figure()
+    plt.plot(Total_foot_step[0,:])
+    plt.plot(Total_foot_step[1,:])
+    plt.plot(Total_foot_step[2,:])
+    plt.plot(Total_foot_step[3,:])
+    plt.legend(['FR', 'FL', 'RR', 'RL'])
+    plt.ylabel('Foot contact [1 if there is contact]')
+    plt.xlabel('Time [ms]')
+    plt.title('Foot contact')
+    
+    steps_edge=np.array(Total_foot_step[0,1:]-Total_foot_step[0,:-1])
+    number_of_steps=np.sum(steps_edge==1)
+    Average_stance=np.sum(Total_foot_step[0,:])/(number_of_steps*1000)
+    Average_swing=(TEST_STEPS-np.sum(Total_foot_step[0,:]))/(number_of_steps*1000)
+    Step_duration=Average_stance+Average_swing
+    print('Total stance time in second', np.sum(Total_foot_step[0,:])/1000, 'Average stance time in second', Average_stance,'Average swing time',Average_swing)
+    print('Steps duration [s]',Average_stance+Average_swing)
+    print('Duty cycle', Average_stance/Step_duration)
+
     gait_plt_x = plt.figure()
     plt.plot(Total_leg_xyz[0,0,:])
     plt.plot(Total_leg_xyz[0,1,:])
@@ -408,13 +428,3 @@ if __name__ == "__main__":
     plt.legend('Desired','Obtained')
 
     plt.show()
-    # [TODO] save any CPG or robot states
-
-
-
-
-  # example
-  # fig = plt.figure()
-  # plt.plot(t,joint_pos[1,:], label='FR thigh')
-  # plt.legend()
-  # plt.show()

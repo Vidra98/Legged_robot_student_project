@@ -350,20 +350,6 @@ class QuadrupedGymEnv(gym.Env):
 
     return self._distance_weight * forward_reward
 
-#---------------------------------------------------------------------------------------------------
-
-#---------------------------------------------------------------------------------------------------
-
-#---------------------------------------------------------------------------------------------------
-
-#-------------------RRRRRRRRRRRREEEEEEEEEEEEEEWWWWWWWWWWWWWAAAAAAAARRRRRRRDDDDDDDDDDDDDDDD-----------------------
-
-#---------------------------------------------------------------------------------------------------
-
-#---------------------------------------------------------------------------------------------------
-
-#---------------------------------------------------------------------------------------------------
-
   def _reward_lr_course(self,weight,phi,MAX_SPEED):
     """parameters are :
     weight the weight on :  w1 : Locomotion | w2: smoothness | w3: height | w4: feet moving
@@ -503,8 +489,6 @@ class QuadrupedGymEnv(gym.Env):
       # foot velocity in leg frame i (Equation 2)
       # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
       tau = np.dot(Jacob.transpose(),np.dot(kpCartesian,(desired_pos.transpose()-pos.transpose()))+np.dot(kdCartesian,(-v.transpose()))) # [TODO]
-      #print('pos des', desired_pos.transpose(), '\n pos mes', pos.transpose(),'\ntau pos',np.dot(Jacob.transpose(),np.dot(kpCartesian,(desired_pos.transpose()-pos.transpose()))))
-      #print('\nv measure',v.transpose(),'tau speed',np.dot(Jacob.transpose(),np.dot(kdCartesian,(-v.transpose()))))
       action[3*i:3*i+3] = tau
 
     self.des_foot_pos_past=des_foot_pos
@@ -529,10 +513,6 @@ class QuadrupedGymEnv(gym.Env):
       self._sim_step_counter += 1
       self._dt_motor_torques.append(self.robot.GetMotorTorques())
       self._dt_motor_velocities.append(self.robot.GetMotorVelocities())
-
-      #print(self._sim_step_counter,np.shape(self._dt_motor_torques),np.shape(self.robot.GetMotorTorques()))
-      #print(self._sim_step_counter,np.shape(self._dt_motor_velocities),np.shape(self.robot.GetMotorVelocities()))
-
       if self._is_render:
         self._render_step_helper()
 

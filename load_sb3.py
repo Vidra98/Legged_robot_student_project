@@ -33,8 +33,8 @@ plot_fig=True
 save_plot=True
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
-env_config = {"motor_control_mode":"CARTESIAN_PD",       #"PD" | "TORQUE" | "CARTESIAN_PD"
-               "task_env": "LR_COURSE_FWD",    #LR_COURSE_FWD,LR_COURSE_BACKWARD,LR_COURSE_SIDEWAY,LR_COURSE_TROT 
+env_config = {"motor_control_mode":"CARTESIAN_PD",        #"PD" | "TORQUE" | "CARTESIAN_PD"
+               "task_env": "LR_COURSE_FWD",               #LR_COURSE_FWD,LR_COURSE_BACKWARD,LR_COURSE_SIDEWAY,LR_COURSE_TROT 
                "observation_space_mode": "LR_COURSE_OBS"} # LR_COURSE_OBS , LR_COURSE_OBS_FEET_SENSOR_ADDED
 env_config['render'] = True
 env_config['record_video'] = False
@@ -87,7 +87,6 @@ for i in range(10000):
       print('Total_movement', info[0]['Total_movement'])
 
       print('mean veloctiy x: ',np.mean(velocity[250:,0]), 'y :',np.mean(velocity[250:,1]), 'z :',np.mean(velocity[250:,2]))
-      #time_steps=[x*time_step for x in range(1,len(info[0]['CoT'] ))]
 
       if plot_fig:
         CoT=info[0]['CoT']
@@ -104,11 +103,8 @@ for i in range(10000):
         step_end=200
         Stepping_plt = plt.figure()
         plt.plot(steps[step_start:step_end,0])
-        #plt.plot(steps[:,1])
         plt.plot(steps[step_start:step_end,2])
-        #plt.plot(steps[:,3])
         plt.legend(['FR', 'RR'])
-        #plt.legend(['FR', 'FL', 'RR', 'RL'])
         plt.title('Stepping time')
 
         Stepp_plt_tot = plt.figure()
@@ -116,7 +112,6 @@ for i in range(10000):
         plt.plot(steps[step_start:step_end,1])
         plt.plot(steps[step_start:step_end,2])
         plt.plot(steps[step_start:step_end,3])
-        #plt.legend(['FR', 'RR'])
         plt.legend(['FR', 'FL', 'RR', 'RL'])
         plt.title('Stepping time')
 
