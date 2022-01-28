@@ -19,8 +19,11 @@ The repository depends on recent versions of pybullet, numpy, etc., which you ca
 
 `pip install -r requirements.txt `
 
+## Reinforcement learning policy example
 
+![](doc/flat_terrain.gif)
 
+![](doc/super_side.gif)
 ## Code structure
 
 - [env](./env) for the quadruped environment files, please see the gym simulation environment [quadruped_gym_env.py](./env/quadruped_gym_env.py), the robot specific functionalities in [quadruped.py](./env/quadruped.py), and config variables in [configs_a1.py](./env/configs_a1.py). You will need to make edits in [quadruped_gym_env.py](./env/quadruped_gym_env.py), and review [quadruped.py](./env/quadruped.py) carefully for accessing robot states and calling functions to solve inverse kinematics, return the leg Jacobian, etc. 
